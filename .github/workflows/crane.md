@@ -13,7 +13,7 @@ description: |
   - Maintains a single draft PR per migration that accumulates all accepted iterations
 
 on:
-  schedule: every 6h
+  schedule: every 20m
   workflow_dispatch:
     inputs:
       migration:
