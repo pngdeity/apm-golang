@@ -373,3 +373,130 @@ func TestParityRenderPlanText(t *testing.T) {
 		}
 	})
 }
+
+// TestParityInstallContext verifies that InstallContext mirrors the Python
+// dataclass fields and defaults from context.py.
+func TestParityInstallContext(t *testing.T) {
+	t.Run("required_fields", func(t *testing.T) {
+		ctx := NewInstallContext("/proj", "/proj/.apm")
+		if ctx.ProjectRoot != "/proj" {
+			t.Fatalf("unexpected ProjectRoot: %q", ctx.ProjectRoot)
+		}
+		if ctx.ApmDir != "/proj/.apm" {
+			t.Fatalf("unexpected ApmDir: %q", ctx.ApmDir)
+		}
+	})
+
+	t.Run("parallel_downloads_default", func(t *testing.T) {
+		ctx := NewInstallContext("/proj", "/proj/.apm")
+		if ctx.ParallelDownloads != 4 {
+			t.Fatalf("expected default 4, got %d", ctx.ParallelDownloads)
+		}
+	})
+
+	t.Run("maps_initialized", func(t *testing.T) {
+		ctx := NewInstallContext("/proj", "/proj/.apm")
+		if ctx.CallbackDownloaded == nil {
+			t.Fatal("CallbackDownloaded should be initialized")
+		}
+		if ctx.PackageDeployedFiles == nil {
+			t.Fatal("PackageDeployedFiles should be initialized")
+		}
+		if ctx.PackageTypes == nil {
+			t.Fatal("PackageTypes should be initialized")
+		}
+		if ctx.PackageHashes == nil {
+			t.Fatal("PackageHashes should be initialized")
+		}
+	})
+
+	t.Run("bool_defaults_false", func(t *testing.T) {
+		ctx := NewInstallContext("/proj", "/proj/.apm")
+		if ctx.DryRun {
+			t.Fatal("DryRun should default to false")
+		}
+		if ctx.Force {
+			t.Fatal("Force should default to false")
+		}
+		if ctx.AllowInsecure {
+			t.Fatal("AllowInsecure should default to false")
+		}
+		if ctx.DirectDepFailed {
+			t.Fatal("DirectDepFailed should default to false")
+		}
+	})
+
+	t.Run("installed_counts_zero", func(t *testing.T) {
+		ctx := NewInstallContext("/proj", "/proj/.apm")
+		if ctx.InstalledCount != 0 {
+			t.Fatalf("InstalledCount should be 0, got %d", ctx.InstalledCount)
+		}
+		if ctx.TotalSkillsIntegrated != 0 {
+			t.Fatalf("TotalSkillsIntegrated should be 0, got %d", ctx.TotalSkillsIntegrated)
+		}
+	})
+}
+
+// TestParityInstallRequest verifies that InstallRequest mirrors the Python
+// dataclass from request.py.
+func TestParityInstallRequest(t *testing.T) {
+	t.Run("required_field", func(t *testing.T) {
+		req := NewInstallRequest("pkg")
+		if req.ApmPackage != "pkg" {
+			t.Fatalf("unexpected ApmPackage: %v", req.ApmPackage)
+		}
+	})
+
+	t.Run("parallel_downloads_default", func(t *testing.T) {
+		req := NewInstallRequest(nil)
+		if req.ParallelDownloads != 4 {
+			t.Fatalf("expected default 4, got %d", req.ParallelDownloads)
+		}
+	})
+
+	t.Run("bool_defaults_false", func(t *testing.T) {
+		req := NewInstallRequest(nil)
+		if req.UpdateRefs {
+			t.Fatal("UpdateRefs should default to false")
+		}
+		if req.Force {
+			t.Fatal("Force should default to false")
+		}
+		if req.Frozen {
+			t.Fatal("Frozen should default to false")
+		}
+		if req.NoPolicy {
+			t.Fatal("NoPolicy should default to false")
+		}
+	})
+
+	t.Run("optional_fields_nil", func(t *testing.T) {
+		req := NewInstallRequest(nil)
+		if req.OnlyPackages != nil {
+			t.Fatal("OnlyPackages should be nil by default")
+		}
+		if req.AllowProtocolFallback != nil {
+			t.Fatal("AllowProtocolFallback should be nil by default")
+		}
+		if req.PlanCallback != nil {
+			t.Fatal("PlanCallback should be nil by default")
+		}
+	})
+
+	t.Run("plan_callback_invocable", func(t *testing.T) {
+		called := false
+		req := NewInstallRequest(nil)
+		req.PlanCallback = func(p *UpdatePlan) bool {
+			called = true
+			return true
+		}
+		plan := &UpdatePlan{}
+		result := req.PlanCallback(plan)
+		if !called {
+			t.Fatal("PlanCallback was not called")
+		}
+		if !result {
+			t.Fatal("PlanCallback should return true")
+		}
+	})
+}
