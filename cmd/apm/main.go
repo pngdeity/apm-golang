@@ -72,6 +72,15 @@ func printHelp() {
 	}
 }
 
+// isGroupCmd returns true for commands that have subcommands and manage their own --help.
+func isGroupCmd(name string) bool {
+	switch name {
+	case "cache", "deps", "marketplace":
+		return true
+	}
+	return false
+}
+
 func printCmdHelp(name string) {
 	canonical := name
 	if a, ok := aliases[name]; ok {
@@ -171,6 +180,10 @@ func run(args []string) int {
 
 	for _, a := range rest {
 		if a == "--help" || a == "-h" || a == "-help" {
+			// Group commands handle their own --help (they list subcommands).
+			if isGroupCmd(cmd) {
+				break
+			}
 			printCmdHelp(cmd)
 			return 0
 		}
@@ -180,10 +193,30 @@ func run(args []string) int {
 	switch cmd {
 	case "init":
 		return runInit(rest)
+	case "targets":
+		return runTargets(rest)
+	case "list":
+		return runList(rest)
+	case "deps":
+		return runDeps(rest)
+	case "cache":
+		return runCache(rest)
+	case "config":
+		return runConfig(rest)
+	case "view":
+		return runView(rest)
+	case "marketplace":
+		return runMarketplace(rest)
+	case "compile":
+		return runCompile(rest)
+	case "pack":
+		return runPack(rest)
+	case "unpack":
+		return runUnpack(rest)
 	}
 
 	// Commands not yet fully wired to Go business logic.
-	fmt.Fprintf(os.Stderr, "apm: %s is not yet fully implemented in the Go rewrite.\n", cmd)
+	fmt.Fprintf(os.Stderr, "apm: %s command is not yet implemented in the Go rewrite.\n", cmd)
 	fmt.Fprintf(os.Stderr, "Run 'apm --help' for usage.\n")
 	_ = strings.Join(rest, " ")
 	return 1

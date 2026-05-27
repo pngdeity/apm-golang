@@ -91,4 +91,29 @@ var commandOptions = map[string][]string{
 	"list": {
 		"  --json     Output as JSON",
 	},
+	"targets": {
+		"  --json  Output as JSON instead of a table.",
+		"  --all   Include the agent-skills meta-target in JSON output (excluded by default).",
+	},
+	"cache": {
+		"  --help  Show this message and exit.",
+	},
+	"deps": {
+		"  --help  Show this message and exit.",
+	},
+	"config": {
+		"  --help  Show this message and exit.",
+	},
+	"marketplace": {
+		"  --help  Show this message and exit.",
+	},
+	"pack": {
+		"  --dry-run          Show what would be packed without writing",
+		"  -o, --output PATH  Bundle output directory (default: ./build).",
+		"  --json             Emit machine-readable JSON to stdout.",
+		"  -v, --verbose      Show detailed packing information.",
+	},
+	"unpack": {
+		"  --help  Show this message and exit.",
+	},
 }
