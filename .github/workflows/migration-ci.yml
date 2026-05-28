@@ -25,8 +25,40 @@ env:
   PYTHON_VERSION: "3.12"
 
 jobs:
+  detect-changes:
+    name: Detect Migration Changes
+    runs-on: ubuntu-24.04
+    outputs:
+      should-run: ${{ steps.filter.outputs.should-run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check changed paths
+        id: filter
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should-run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}" \
+            | tee "$RUNNER_TEMP/changed-files.txt"
+
+          if grep -Eq '^(\.crane/|cmd/|internal/|pkg/|go\.mod$|go\.sum$|pyproject\.toml$|src/|tests/benchmarks/|tests/unit/test_crane_score\.py$)' "$RUNNER_TEMP/changed-files.txt"; then
+            echo "should-run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should-run=false" >> "$GITHUB_OUTPUT"
+          fi
+
   parity:
     name: Python-vs-Go Parity Gate
+    needs: [detect-changes]
+    if: needs.detect-changes.outputs.should-run == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
