@@ -355,7 +355,7 @@ func TestParityCompletionPythonSuite(t *testing.T) {
 		"--ignore=tests/unit/integration",
 	)
 	cmd.Dir = root
-	cmd.Env = append(os.Environ(), "NO_COLOR=1", "PYTHONDONTWRITEBYTECODE=1")
+	cmd.Env = append(os.Environ(), "NO_COLOR=1", "PYTHONDONTWRITEBYTECODE=1", "COLUMNS=10000")
 	var outBuf, errBuf strings.Builder
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
@@ -390,12 +390,14 @@ func TestParityCompletionBenchmarks(t *testing.T) {
 	}
 
 	jsonOut := filepath.Join(t.TempDir(), "benchmark.json")
+	mdOut := filepath.Join(t.TempDir(), "benchmark.md")
 	// Use --repeats 2 for a quick CI smoke test (full 5-repeat runs in the
 	// dedicated benchmarks job).
 	cmd := exec.Command(uvPath, "run", benchScript,
 		"--python-bin", bin,
 		"--go-bin", goBinPath,
 		"--json-out", jsonOut,
+		"--markdown-out", mdOut,
 		"--max-ratio", "5.0",
 		"--repeats", "2",
 	)
