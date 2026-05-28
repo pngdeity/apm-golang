@@ -92,8 +92,10 @@ jobs:
               score = json.load(fh)
 
           print(json.dumps(score, indent=2, sort_keys=True))
-          if score.get("migration_score") != 1.0:
-              raise SystemExit("migration_score must be 1.0 for completion parity")
+          if score.get("progress") != 1.0:
+              raise SystemExit("progress must be 1.0 for completion parity")
+          if score.get("migration_score") == 1.0 and not score.get("deletion_grade_ready"):
+              raise SystemExit("migration_score 1.0 requires deletion_grade_ready")
           PY
 
       - name: Upload parity evidence

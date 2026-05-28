@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -14,20 +16,24 @@ def _run_score(input_lines: list[str]) -> dict[str, object]:
     if shutil.which("go") is None:
         pytest.skip("Go toolchain is not installed")
 
-    result = subprocess.run(
-        ["go", "run", ".crane/scripts/score.go"],
-        cwd=ROOT,
-        input="\n".join(input_lines) + "\n",
-        text=True,
-        capture_output=True,
-        check=True,
-    )
+    with tempfile.TemporaryDirectory(prefix="apm-go-cache-") as go_cache:
+        env = os.environ.copy()
+        env.setdefault("GOCACHE", go_cache)
+        if not env.get("HOME"):
+            env["HOME"] = str(Path.home())
+        result = subprocess.run(
+            ["go", "run", ".crane/scripts/score.go"],
+            cwd=ROOT,
+            input="\n".join(input_lines) + "\n",
+            text=True,
+            capture_output=True,
+            check=True,
+            env=env,
+        )
     return json.loads(result.stdout)
 
 
-def _go_pass(
-    test: str, package: str = "github.com/githubnext/apm/internal/parity"
-) -> list[str]:
+def _go_pass(test: str, package: str = "github.com/githubnext/apm/internal/parity") -> list[str]:
     return [
         json.dumps({"Action": "run", "Package": package, "Test": test}),
         json.dumps({"Action": "pass", "Package": package, "Test": test}),
@@ -133,11 +139,7 @@ def test_crane_score_full_parity_but_bad_deletion_gate_cannot_reach_one(
     bad_gate: str,
 ) -> None:
     bad_gate_name = json.loads(bad_gate)["name"]
-    gates = [
-        line
-        for line in _deletion_gates()
-        if json.loads(line)["name"] != bad_gate_name
-    ]
+    gates = [line for line in _deletion_gates() if json.loads(line)["name"] != bad_gate_name]
 
     score = _run_score([*_parity_passes(302), _package_pass(), *gates, bad_gate])
 
@@ -164,14 +166,20 @@ def test_crane_score_rejects_empty_event_stream() -> None:
     if shutil.which("go") is None:
         pytest.skip("Go toolchain is not installed")
 
-    result = subprocess.run(
-        ["go", "run", ".crane/scripts/score.go"],
-        cwd=ROOT,
-        input="",
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    with tempfile.TemporaryDirectory(prefix="apm-go-cache-") as go_cache:
+        env = os.environ.copy()
+        env.setdefault("GOCACHE", go_cache)
+        if not env.get("HOME"):
+            env["HOME"] = str(Path.home())
+        result = subprocess.run(
+            ["go", "run", ".crane/scripts/score.go"],
+            cwd=ROOT,
+            input="",
+            text=True,
+            capture_output=True,
+            check=False,
+            env=env,
+        )
 
     assert result.returncode != 0
     assert "empty or incomplete" in result.stderr
