@@ -99,7 +99,7 @@ def test_crane_score_applies_target_correctness_gate() -> None:
 
 
 def test_crane_score_can_reach_one_with_all_deletion_grade_gates() -> None:
-    score = _run_score(_parity_passes(302) + [_package_pass()] + _deletion_gates())
+    score = _run_score([*_parity_passes(302), _package_pass(), *_deletion_gates()])
 
     assert score["migration_score"] == 1.0
     assert score["deletion_grade_ready"] is True
@@ -139,21 +139,21 @@ def test_crane_score_full_parity_but_bad_deletion_gate_cannot_reach_one(
         if json.loads(line)["name"] != bad_gate_name
     ]
 
-    score = _run_score(_parity_passes(302) + [_package_pass()] + gates + [bad_gate])
+    score = _run_score([*_parity_passes(302), _package_pass(), *gates, bad_gate])
 
     assert score["migration_score"] < 1.0
     assert score["deletion_grade_ready"] is False
 
 
 def test_crane_score_full_parity_but_missing_deletion_gates_cannot_reach_one() -> None:
-    score = _run_score(_parity_passes(302) + [_package_pass()])
+    score = _run_score([*_parity_passes(302), _package_pass()])
 
     assert score["migration_score"] < 1.0
     assert score["deletion_grade_ready"] is False
 
 
 def test_crane_score_package_level_go_failure_blocks_one() -> None:
-    score = _run_score(_parity_passes(302) + [_package_fail()] + _deletion_gates())
+    score = _run_score([*_parity_passes(302), _package_fail(), *_deletion_gates()])
 
     assert score["migration_score"] == 0
     assert score["go_tests_passing"] is False
