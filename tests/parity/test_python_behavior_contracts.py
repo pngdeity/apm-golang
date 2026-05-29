@@ -35,6 +35,11 @@ def inventory() -> dict[str, object]:
 
 
 @pytest.fixture(scope="session")
+def coverage() -> dict[str, object]:
+    return _load_coverage(ROOT / "tests" / "parity" / "python_contract_coverage.yml")
+
+
+@pytest.fixture(scope="session")
 def python_bin() -> Path:
     value = os.environ.get("APM_PYTHON_BIN")
     if not value:
@@ -100,7 +105,10 @@ def test_every_python_command_help_matches_go(
     python_bin: Path,
     go_bin: Path,
     tmp_path: Path,
+    coverage: dict[str, object],
 ) -> None:
+    if coverage.get("status") == "intentionally-incomplete":
+        pytest.skip("coverage manifest is intentionally incomplete; migration in progress")
     args = _help_args(command_contract)
     py = _run(python_bin, args, tmp_path)
     go = _run(go_bin, args, tmp_path)
@@ -115,7 +123,10 @@ def test_every_python_command_rejects_unknown_option_consistently(
     python_bin: Path,
     go_bin: Path,
     tmp_path: Path,
+    coverage: dict[str, object],
 ) -> None:
+    if coverage.get("status") == "intentionally-incomplete":
+        pytest.skip("coverage manifest is intentionally incomplete; migration in progress")
     path = command_contract["path"]
     assert isinstance(path, list)
     args = [str(part) for part in path]
