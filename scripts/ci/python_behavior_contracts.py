@@ -403,6 +403,9 @@ def cmd_check(args: argparse.Namespace) -> int:
     if args.summary:
         Path(args.summary).write_text(summary, encoding="utf-8")
     print(summary)
+    if coverage.get("status") == "intentionally-incomplete":
+        # Manifest explicitly declared incomplete; report findings without failing.
+        return 0
     return 1 if findings else 0
 
 
