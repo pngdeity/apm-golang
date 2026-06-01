@@ -73,6 +73,7 @@ def _deletion_gates() -> list[str]:
         '{"crane":"gate","name":"help","passing":1,"total":1}',
         '{"crane":"gate","name":"functional","passing":1,"total":1}',
         '{"crane":"gate","name":"state_diff","passing":1,"total":1}',
+        '{"crane":"gate","name":"python_behavior_contracts","passing":1,"total":1}',
         '{"crane":"gate","name":"known_exceptions","count":0}',
         '{"crane":"gate","name":"python_tests","passed":true}',
         '{"crane":"gate","name":"benchmarks","passed":true}',
@@ -89,6 +90,7 @@ def _completion_gate_events() -> list[str]:
         "TestParityCompletionStateDiffContracts",
         "TestParityCompletionPythonSuite",
         "TestParityCompletionBenchmarks",
+        "TestParityCompletionPythonBehaviorContracts",
     ]
     return [line for test in tests for line in _go_pass(test)]
 
@@ -146,6 +148,7 @@ def test_crane_score_can_reach_one_with_all_deletion_grade_gates() -> None:
         "help_parity": 1.0,
         "functional_contracts": 1.0,
         "state_diff_contracts": 1.0,
+        "python_behavior_contracts": 1.0,
         "known_exceptions": 0,
         "go_tests": "pass",
         "python_tests": "pass",
@@ -161,6 +164,7 @@ def test_crane_score_can_reach_one_with_all_deletion_grade_gates() -> None:
         '{"crane":"gate","name":"help","passing":0,"total":1}',
         '{"crane":"gate","name":"functional","passing":0,"total":1}',
         '{"crane":"gate","name":"state_diff","passing":0,"total":1}',
+        '{"crane":"gate","name":"python_behavior_contracts","passing":0,"total":1}',
         '{"crane":"gate","name":"known_exceptions","count":1}',
         '{"crane":"gate","name":"python_tests","passed":false}',
         '{"crane":"gate","name":"benchmarks","passed":false}',
@@ -217,7 +221,7 @@ def test_crane_score_rejects_empty_event_stream() -> None:
 
 
 def test_crane_score_infers_cutover_gates_from_completion_tests() -> None:
-    score = _run_score([*_parity_passes(294), *_completion_gate_events(), _package_pass()])
+    score = _run_score([*_parity_passes(293), *_completion_gate_events(), _package_pass()])
 
     assert score["migration_score"] == 1.0
     assert score["progress"] == 1.0
@@ -228,7 +232,7 @@ def test_crane_score_infers_cutover_gates_from_completion_tests() -> None:
 def test_crane_score_blocks_known_exceptions() -> None:
     score = _run_score(
         [
-            *_parity_passes(294),
+            *_parity_passes(293),
             *_completion_gate_events(),
             _event("output", "TestParityCompletionHelpIdentical", output="APPROVED-EXCEPTION: no"),
             _package_pass(),

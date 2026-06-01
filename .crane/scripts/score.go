@@ -62,6 +62,7 @@ type CutoverGates struct {
 	HelpParity              float64 `json:"help_parity"`
 	FunctionalContracts     float64 `json:"functional_contracts"`
 	StateDiffContracts      float64 `json:"state_diff_contracts"`
+	PythonBehaviorContracts float64 `json:"python_behavior_contracts"`
 	KnownExceptions         int     `json:"known_exceptions"`
 	GoTests                 string  `json:"go_tests"`
 	PythonTests             string  `json:"python_tests"`
@@ -141,6 +142,7 @@ func computeScore(input scanInput, getenv getenvFunc) (Score, error) {
 	help := RatioGate{}
 	functional := RatioGate{}
 	stateDiff := RatioGate{}
+	behaviorContracts := RatioGate{}
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -161,6 +163,8 @@ func computeScore(input scanInput, getenv getenvFunc) (Score, error) {
 				functional = RatioGate{Seen: true, Passing: gate.Passing, Total: gate.Total}
 			case "state_diff":
 				stateDiff = RatioGate{Seen: true, Passing: gate.Passing, Total: gate.Total}
+			case "python_behavior_contracts":
+				behaviorContracts = RatioGate{Seen: true, Passing: gate.Passing, Total: gate.Total}
 			case "known_exceptions":
 				knownExceptions = gate.Count
 			case "python_tests":
@@ -248,6 +252,9 @@ func computeScore(input scanInput, getenv getenvFunc) (Score, error) {
 	if !stateDiff.Seen {
 		stateDiff = inferredAnyRatioGate(passed, failed, "TestParityCompletionStateDiffContracts", "TestParityStateDiffContracts")
 	}
+	if !behaviorContracts.Seen {
+		behaviorContracts = inferredAnyRatioGate(passed, failed, "TestParityCompletionPythonBehaviorContracts")
+	}
 	if !pythonTests.Seen {
 		pythonTests = BoolGate{Seen: true, Passed: testPassed(passed, failed, "TestParityCompletionPythonSuite")}
 	}
@@ -262,6 +269,7 @@ func computeScore(input scanInput, getenv getenvFunc) (Score, error) {
 		HelpParity:              help.Percent(),
 		FunctionalContracts:     functional.Percent(),
 		StateDiffContracts:      stateDiff.Percent(),
+		PythonBehaviorContracts: behaviorContracts.Percent(),
 		KnownExceptions:         knownExceptions,
 		GoTests:                 passFail(goTestsPass),
 		PythonTests:             passFail(pythonTests.OK()),
@@ -283,6 +291,7 @@ func computeScore(input scanInput, getenv getenvFunc) (Score, error) {
 		gates.HelpParity == 1.0 &&
 		gates.FunctionalContracts == 1.0 &&
 		gates.StateDiffContracts == 1.0 &&
+		gates.PythonBehaviorContracts == 1.0 &&
 		gates.KnownExceptions == 0 &&
 		gates.GoTests == "pass" &&
 		gates.PythonTests == "pass" &&
@@ -396,6 +405,7 @@ func gateResults(gates CutoverGates) []GateResult {
 		{Name: "help_parity", Passing: gates.HelpParity == 1.0},
 		{Name: "functional_contracts", Passing: gates.FunctionalContracts == 1.0},
 		{Name: "state_diff_contracts", Passing: gates.StateDiffContracts == 1.0},
+		{Name: "python_behavior_contracts", Passing: gates.PythonBehaviorContracts == 1.0},
 		{Name: "python_tests_pass", Passing: gates.PythonTests == "pass"},
 		{Name: "benchmarks_pass", Passing: gates.Benchmarks == "pass"},
 		{Name: "no_known_exceptions", Passing: gates.KnownExceptions == 0},
