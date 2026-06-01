@@ -32,12 +32,8 @@ def test_readme_documents_go_cli_migration_usage() -> None:
 def test_readme_distinguishes_parity_gate_from_full_historical_coverage() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
+    assert "`migration_score=1`, `progress=1`, and `706/706` parity tests passing" in readme
     assert (
-        "`migration_score=1`, `progress=1`, and `706/706` parity tests passing"
-        in readme
-    )
-    assert (
-        "That gate is not the same thing as claiming all historical Python integration,"
-        in readme
+        "That gate is not the same thing as claiming all historical Python integration," in readme
     )
     assert "`APM_PYTHON_BIN` is required for the hard Python-vs-Go parity gate" in readme
