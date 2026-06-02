@@ -29,3 +29,12 @@ def test_crane_commit_guidance_provides_structured_summary_fallback() -> None:
     assert "Changes:" in text
     assert "Run: {run_url}" in text
     assert text.index("Changes:") < text.index("Run: {run_url}")
+
+
+def test_crane_prompt_blocks_stale_completed_state_from_finishing() -> None:
+    text = _workflow_text()
+
+    assert "stale_completed_state" in text
+    assert "active label wins" in text
+    assert "Never mark completed from stored `best_metric` alone" in text
+    assert "the current run must produce and accept a verification score" in text

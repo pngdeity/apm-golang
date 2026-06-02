@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Crane no longer treats stale repo-memory `Completed: true` as final when an issue still has `crane-migration`; active issue migrations must re-run fresh verification before completion. (#101)
 - Root `.apm` hooks no longer duplicate after renaming the project directory or using git worktrees; Claude, Codex, Cursor, Gemini, and Windsurf hook configs stay idempotent across checkouts. The hook source-id is now derived from `apm.yml`'s `name` field instead of `install_path.name`, and `apm install` silently heals stale same-content entries from prior checkout basenames. Copilot is unaffected (its hooks live in per-file namespaces under `.github/hooks/`, not a shared merged config). (#1392, closes #1329)
 
 ## [0.14.1] - 2026-05-20

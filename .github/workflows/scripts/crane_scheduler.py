@@ -214,9 +214,14 @@ def is_unconfigured(content):
     return False
 
 
-def check_skip_conditions(state):
+def is_completed_state(state):
+    """Return True when repo-memory says the migration is completed."""
+    return str(state.get("completed", "")).lower() == "true" or state.get("completed") is True
+
+
+def check_skip_conditions(state, issue_active=False):
     """Return ``(should_skip, reason)`` based on the migration state."""
-    if str(state.get("completed", "")).lower() == "true" or state.get("completed") is True:
+    if is_completed_state(state) and not issue_active:
         return True, "completed: target metric reached"
     if state.get("paused"):
         return True, "paused: {}".format(state.get("pause_reason", "unknown"))
@@ -606,6 +611,7 @@ def main():
                     "due": [],
                     "skipped": [],
                     "unconfigured": [],
+                    "stale_completed_state": [],
                     "no_migrations": True,
                     "head_branch": None,
                     "existing_pr": None,
@@ -618,10 +624,12 @@ def main():
     due = []
     skipped = []
     unconfigured = []
+    stale_completed_state = []
     all_migrations = {}  # name -> file path
 
     for pf in migration_files:
         name = get_migration_name(pf)
+        issue_active = name in issue_migrations
         all_migrations[name] = pf
         with open(pf) as f:
             content = f.read()
@@ -661,6 +669,14 @@ def main():
         else:
             print("  {}: no state found (first run)".format(name))
 
+        has_stale_completed_state = issue_active and is_completed_state(state)
+        if has_stale_completed_state:
+            stale_completed_state.append(name)
+            print(
+                f"  {name}: issue still has crane-migration label; treating "
+                "Completed=true as stale until fresh verification passes"
+            )
+
         last_run = None
         lr = state.get("last_run")
         if lr:
@@ -669,7 +685,7 @@ def main():
             except ValueError:
                 pass
 
-        should_skip, reason = check_skip_conditions(state)
+        should_skip, reason = check_skip_conditions(state, issue_active=issue_active)
         if should_skip:
             skipped.append({"name": name, "reason": reason})
             continue
@@ -692,6 +708,7 @@ def main():
             "target_metric": target_metric,
             "metric_direction": metric_direction,
             "strategy": strategy,
+            "stale_completed_state": has_stale_completed_state,
         })
 
     selected, selected_file, selected_issue, selected_target_metric, selected_metric_direction, selected_strategy, deferred, error = (
@@ -728,6 +745,7 @@ def main():
         "issue_migrations": {
             name: info["issue_number"] for name, info in issue_migrations.items()
         },
+        "stale_completed_state": stale_completed_state,
         "deferred": deferred,
         "skipped": skipped,
         "unconfigured": unconfigured,
