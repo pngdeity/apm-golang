@@ -180,6 +180,7 @@ The pre-step fetches open issues with the `crane-migration` label via the GitHub
 When a migration is issue-based, `/tmp/gh-aw/crane.json` includes:
 - **`selected_issue`**: The issue number (e.g., `42`) if the selected migration came from an issue, or `null` if it came from a file.
 - **`issue_migrations`**: A mapping of migration name -> issue number for all issue-based migrations found.
+- **`stale_completed_state`**: Issue-based migrations whose issue still has `crane-migration` even though repo-memory says `Completed: true`.
 
 ### Reading Migrations
 
@@ -193,6 +194,7 @@ The pre-step has already determined which migration to run. Read `/tmp/gh-aw/cra
 - **`selected_strategy`**: The `strategy` value from the migration's frontmatter -- one of `"in-place"`, `"greenfield"`, or `"auto"`. If `"auto"`, the agent must pick on the first iteration and write the chosen strategy back into the state file's Machine State table.
 - **`state_file_size_bytes`** / **`state_file_max_bytes`**: For rolling-compaction decisions (see [Update Rules](#update-rules)).
 - **`issue_migrations`**: A mapping of migration name -> issue number for all discovered issue-based migrations.
+- **`stale_completed_state`**: A list of active issue-based migrations where repo-memory still says `Completed: true`; treat this as stale memory, not as permission to finish.
 - **`deferred`**: Other migrations that were due but will be handled in future runs.
 - **`unconfigured`**: Migrations that still have the sentinel or placeholder content.
 - **`skipped`**: Migrations not due yet based on their per-migration schedule, or completed/paused.
@@ -207,6 +209,7 @@ If `selected` is not null:
 3. Read the current state of all source and target paths.
 4. Read the state file `{selected}.md` from the repo-memory folder. This contains the Machine State table, the Migration Plan, lessons, blockers, and iteration history.
 5. If `selected_issue` is not null, also read the issue comments for any human steering input.
+6. If `selected` appears in `stale_completed_state`, ignore any pre-existing `Completed: true`, `Completed Reason`, or target-satisfying `best_metric` as a completion signal. First run the current verification contract and only re-complete after a fresh accepted iteration satisfies the current halting condition.
 
 ## Multiple Migrations
 
@@ -237,7 +240,7 @@ schedule: every 1h
 
 ### Target Metric (Halting Condition)
 
-Migrations should usually specify `target-metric: 1.0` in the frontmatter -- the typical "completed when fully migrated and verified" setting. When the health score reaches the target, the migration completes: the `crane-migration` label is removed, `crane-completed` is added (for issue-based migrations), and the state file is marked `Completed: true`.
+Migrations should usually specify `target-metric: 1.0` in the frontmatter -- the typical "completed when fully migrated and verified" setting. When the fresh health score from an accepted iteration reaches the target, the migration completes: the `crane-migration` label is removed, `crane-completed` is added (for issue-based migrations), and the state file is marked `Completed: true`.
 
 Migrations without a `target-metric` are **open-ended** and run indefinitely (rare for migrations -- usually a sign you actually want goal-oriented).
 
@@ -540,12 +543,13 @@ If `status == "failure"`, **fix and retry -- do not revert, do not accept**:
 3. Ensure the migration issue exists (see [Migration Issue](#migration-issue) below) -- for file-based migrations with no migration issue yet (`selected_issue` is null in `/tmp/gh-aw/crane.json`), create one and record its number in the state file's `Issue` field.
 4. Update the state file `{migration-name}.md` in the repo-memory folder:
    - **[*] Machine State** table: reset `consecutive_errors` to 0, set `best_metric` (the new `migration_score`), increment `iteration_count`, set `last_run` to current UTC, append `"accepted"` to `recent_statuses` (keep last 10), set `paused` to false.
+   - If this migration was listed in `stale_completed_state`, also set `Completed: false` and `Completed Reason: --` before checking the halting condition. Do not carry a stale completion marker forward unless the current accepted iteration completes again.
    - **[ladder] Milestones**: update the relevant milestone's status -- typically `done` if the milestone was fully completed, otherwise leave `in-progress` and update its notes. If the milestone is done, the next milestone in the list becomes the new **[target] Current Focus**.
    - Prepend an entry to **[chart] Iteration History** using the shared accepted iteration summary: status [+], score, **signed delta**, PR link, commit SHA, run URL, fix-attempt count if `> 0`, and a one-line summary of what milestone was advanced and how.
    - Update **[docs] Lessons Learned** if this iteration revealed something new (e.g. a bridging trick, a parity surprise, a perf trap).
    - Update **[scope] Future Work** if this iteration opened new threads.
 5. **Update the migration issue**: edit the status comment and post a per-iteration comment using the same shared accepted iteration summary.
-6. **Check halting condition** (see [Halting Condition](#halting-condition)): if `target-metric` is set, compare the new `best_metric` against it. For `higher` direction: completed when `best_metric >= target-metric`. When the target is met, mark the migration as completed.
+6. **Check halting condition** (see [Halting Condition](#halting-condition)): if `target-metric` is set, compare the new `best_metric` from this accepted iteration against it. For `higher` direction: completed when `best_metric >= target-metric`. Never mark completed from stored `best_metric` alone or a pre-existing `Completed: true`; completion requires the current accepted iteration's fresh verification result. When the target is met, mark the migration as completed.
 
 **If the score did not improve**:
 1. Discard the code changes (do not commit them to the long-running branch).
@@ -648,6 +652,7 @@ After **every iteration** (accepted, rejected, or error), post a **new comment**
 - For issue-based migrations, the source issue body IS the migration definition -- do not modify it (the user owns it).
 - For file-based migrations, the migration issue body is informational and may be lightly updated, but the migration file (`migration.md`) remains the source of truth.
 - The `crane-migration` label must remain on the issue for the migration to be discovered. When a migration completes, the label is removed and replaced with `crane-completed`.
+- If an issue has `crane-migration` but repo-memory says `Completed: true`, the active label wins. Treat the completed state as stale until the current verification contract passes in a fresh accepted iteration.
 - Closing the migration issue stops the migration from being discovered. Do NOT close the migration issue when the PR is merged -- the branch continues to accumulate future iterations until the target metric is reached.
 - Migration issues are labeled `[crane-migration, automation, crane]`.
 
@@ -658,7 +663,7 @@ Migrations are usually **goal-oriented** -- you want to finish. Set `target-metr
 ### How It Works
 
 1. Parse the `target-metric` value from the migration's YAML frontmatter (if present).
-2. After each **accepted** iteration, compare the new `best_metric` against the `target-metric`.
+2. After each **accepted** iteration, compare the new `best_metric` from that iteration against the `target-metric`.
 3. For `higher` direction (default): completed when `best_metric >= target-metric`.
 4. For `lower` direction: completed when `best_metric <= target-metric`.
 5. When completed:
@@ -668,6 +673,8 @@ Migrations are usually **goal-oriented** -- you want to finish. Set `target-metr
    - Update the status comment to [+] Completed.
    - Post a celebratory per-iteration comment: `[+] **Migration complete!** {source} -> {target} finished after {N} iterations.`
    - The migration will not be selected for future runs.
+
+Do not enter this path from repo-memory alone. A stored `Completed: true`, old `Completed Reason`, or historical `best_metric` is only evidence about a previous run; the current run must produce and accept a verification score that satisfies the current migration definition.
 
 ### Open-Ended Migrations
 
